@@ -1,6 +1,8 @@
 package com.leonlu.code.sample.spark.java.io;
 
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Properties;
 
 import org.apache.spark.SparkConf;
@@ -10,7 +12,13 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.sql.DataFrame;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SQLContext;
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.StructField;
+import org.apache.spark.sql.types.StructType;
+
 import scala.Tuple2;
 /**
  * sample of reading and writing in Spark
@@ -88,8 +96,32 @@ public class ReadWriteSample {
 		
 		sc.close();
 	}
+	public static void turnRddToDataFrame() {
+		JavaSparkContext sc = new JavaSparkContext(conf);
+		SQLContext sqlContext = new SQLContext(sc);
+		final String path = "file://" + 
+				ReadWriteSample.class.getClassLoader().getResource("data/people.csv").getPath();
+		JavaRDD<Row> rowRdd = sc.textFile(path).map(new Function<String, Row>() {
+
+			@Override
+			public Row call(String line) throws Exception {
+				String[] parts = line.split(",");
+				return RowFactory.create(parts);
+			}
+			
+		});
+		List<StructField> fields = new ArrayList<StructField>();
+		fields.add(DataTypes.createStructField("age", DataTypes.IntegerType, false));
+		fields.add(DataTypes.createStructField("name", DataTypes.StringType, false));
+		StructType schema = DataTypes.createStructType(fields);
+		
+		DataFrame dataframe = sqlContext.createDataFrame(rowRdd, schema);
+		dataframe.show();
+	}
+	
 	public static void main(String args[]) {
 		//readFromFileWithWholeTextFiles();
 		//writeToDatabaseWithJdbc();
+		turnRddToDataFrame();
 	}
 }
